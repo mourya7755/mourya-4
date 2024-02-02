@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+contract SubstanceToken is ERC20, Ownable {
+    enum Substance { IRON, STEEL, ALUMINIUM }
+
+    event SubstanceRedeemed(address indexed account, Substance substance, uint256 substanceCost);
+
+    mapping(address => Substance) public userSelectedSubstances;
+    mapping(Substance => uint256) public substanceCosts;
+
+    constructor(address initialOwner) ERC20("SubstanceToken", "SBT") Ownable(initialOwner) {
+        setInitialSubstanceCosts();
+    }
+
+    function mint(address to, uint256 no_of_tokens) external onlyOwner {
+        _mint(to, no_of_tokens);
+    }
+
+    function burn(uint256 no_of_tokens) external {
+        require(no_of_tokens > 0, "Cannot destroy zero tokens");
+        require(balanceOf(msg.sender) >= no_of_tokens, "Insufficient balance for burning tokens");
+        _burn(msg.sender, no_of_tokens);
+    }
+
+    function redeemSubstance(uint8 substanceNumber) external {
+        Substance substance = convertSubstance(substanceNumber);
+        uint256 substanceCost = getSubstanceCost(substance);
+
+        require(substanceCost > 0, "Substance cost cannot be zero");
+        require(balanceOf(msg.sender) >= substanceCost, "Insufficient balance for redeeming substance");
+
+        _burn(msg.sender, substanceCost);
+
+        userSelectedSubstances[msg.sender] = substance;
+        emit SubstanceRedeemed(msg.sender, substance, substanceCost);
+    }
+
+    function transfer_(address recipient, uint256 no_of_tokens) external {
+        require(recipient != address(0), "Invalid recipient address");
+        require(balanceOf(msg.sender) >= no_of_tokens, "Insufficient balance for transferring tokens");
+        _transfer(msg.sender, recipient, no_of_tokens);
+    }
+
+    function getSubstanceCost(Substance substance) internal view returns (uint256) {
+        return substanceCosts[substance];
+    }
+
+    function convertSubstance(uint8 substanceNumber) internal pure returns (Substance) {
+        require(substanceNumber >= 1 && substanceNumber <= 3, "Invalid substance number");
+
+        if (substanceNumber == 1) {
+            return Substance.IRON;
+        } else if (substanceNumber == 2) {
+            return Substance.STEEL;
+        } else {
+            return Substance.ALUMINIUM;
+        }
+    }
+
+    function setInitialSubstanceCosts() internal {
+        substanceCosts[Substance.IRON] = 100;
+        substanceCosts[Substance.STEEL] = 120;
+        substanceCosts[Substance.ALUMINIUM] = 150;
+    }
+}
